@@ -17,15 +17,18 @@ Požadavky:
 
 4) Uzly mají náhodně přidělené váhy, které ovlivňují jejich vzhled a vliv na okolité uzly
 
-5) Zobrazení zahušťuje a zmenšuje uzly daleko od středu obrazovky (např. transformací r = R - k/(sqrt(x^2+y^2) + 1; alfa = arcsin(x/r)), kde x a y jsou karteziánské souřadnice, r a alfa jsou polární souřadnice po transformaci, které je nutné převést na transformované karteziánské xnew = sin(alfa)*r; ynew = cos(alfa)*r)
+5) Zobrazení zahušťuje a zmenšuje uzly daleko od středu obrazovky (např. adjust_positionací r = R - k/(sqrt(x^2+y^2) + 1; alpha = arcsin(x/r)), kde x a y jsou karteziánské souřadnice, r a alpha jsou polární souřadnice po adjust_positionaci, které je nutné převést na adjust_positionované karteziánské xnew = sin(alpha)*r; ynew = cos(alpha)*r)
 6) Automaticke rozlozeni grafu musi dovolovat pohyb do stran a nahoru dolu
 Termín: 14.11.2018
 
 */
 
+int sign(float f) {
+  if (f > 0) return 1;
+  if (f < 0) return -1;
+  return 0;
+} 
 
-int WINDOW_WIDTH = 640;
-int WINDOW_HEIGHT = 480;
 
 class VertexLabel {
 
@@ -34,6 +37,13 @@ class VertexLabel {
 
   public boolean isVisible = false;
   public boolean isPersistent = false;
+
+  VertexLabel(String text) {
+    this.text = text;
+
+    this.x = -1;
+    this.y = -1;
+  }
 
   VertexLabel(String text, float x, float y, boolean visible) {
 
@@ -67,46 +77,65 @@ class VertexLabel {
   }
 }
 
+
 class Vertex {
 
-  float x, y;
-  int radius = 20;
-  
   int id;
-  String name;
 
-  color colour;
+  float x, y;
 
-  VertexLabel label;
+  public String name;
 
-  Vertex(int id, float x, float y, String name, color col) {
+  public float radius;
+  public float weight = 1;
+
+  public color colour;
+
+  public VertexLabel label;
+
+  Vertex(int id, float x, float y, String name, color col, float radius) {
     this.id = id;
+    this.radius = radius;
+
     this.name = name;
 
-    this.x = x;
-    this.y = y;
-
     this.colour = col;
-    this.label = new VertexLabel(this.name, x - this.radius, y - this.radius, false);
+    this.label = new VertexLabel(this.name);
 
-    setLabelPosition();
+    this.setPosition(x, y);
   }
 
   public void setPosition(float x, float y) {
+
+    if (x + this.radius > WINDOW_WIDTH) {
+      x = WINDOW_WIDTH - this.radius;
+    } else if (x - this.radius < 0) {
+      x = this.radius;
+    }
+
+    if (y + this.radius > WINDOW_HEIGHT) {
+      y = WINDOW_HEIGHT - this.radius;
+    } else if (y - this.radius < 0) {
+      y = this.radius;
+    }
+
     this.x = x;
     this.y = y;
 
-    setLabelPosition();
+    this.setLabelPosition();
   }
 
   public void setLabelPosition() {
 
-      float x, y;
+    float x, y;
 
-      x = this.x - this.radius;
-      y = this.y - this.radius;
+    float xfact = this.x < this.radius ? -1.0 : 2;
+    float yfact = this.y < this.radius ? -1.4 : 1.1;
 
-      this.label.setPosition(x, y);
+    x = this.x - this.radius * xfact;
+    y = this.y - this.radius * yfact;
+
+    this.label.setPosition(x, y);
   }
 
   public void draw() {
@@ -123,7 +152,7 @@ class Vertex {
       fill(color(r + 30, g + 30, b + 30, 150));
     }
 
-    ellipse(this.x, this.y, this.radius, this.radius);
+    ellipse(this.x, this.y, 2 * this.radius, 2 * this.radius);
   }
 
   public void drawText() {
@@ -148,38 +177,96 @@ class Vertex {
   }
 }
 
+
+public void adjust_position(Vertex[] vertices, float rate) {
+
+  float k, eps;
+  eps = 0.001;
+
+  for (int i = 0; i < N_VERTICES; i++) {
+
+    Vertex u = vertices[i];
+
+    for (int j = 0; j < N_VERTICES; j++) {
+
+      if (i == j) { continue; }
+
+      Vertex v = vertices[j];
+
+      k = 2 * DEFAULT_VERTEX_SIZE / exp(1) * log(exp(u.radius) + exp(v.radius));
+
+      println(k, u.radius + v.radius);
+
+      float disX = u.x - v.x;
+      float disY = u.y - v.y;
+      float overlap = sqrt(sq(disX) + sq(disY)) - k;
+      
+      if ((overlap < 1) && (abs(overlap) > eps)) {
+
+        float uX, uY, vX, vY;
+
+        uX = u.x - rate * (overlap) * sign(disX) / sq(u.radius);
+        uY = u.y - rate * (overlap) * sign(disY) / sq(u.radius);
+
+        vX = v.x + rate * (overlap) * sign(disX) / sq(v.radius);
+        vY = v.y + rate * (overlap) * sign(disY) / sq(v.radius);
+
+        u.setPosition(uX, uY);
+        v.setPosition(vX, vY);
+      } 
+    }
+  }
+}
+
+int WINDOW_WIDTH = 1080;
+int WINDOW_HEIGHT = 720;
+
 // init values for selected variables
-int n_vertices = 10; //number of graph n_vertices
-int vertex_size = 20; //size of node symbol
+int N_VERTICES = 10; //number of graph N_VERTICES
+int N_CLUSTERS = 4; 
+int DEFAULT_VERTEX_SIZE = 10; //size of node symbol
 
-int background = 226; //background color
-int foreground = 255; //foreground - line color
-color foreground_colour = color(100); // foreground - fill color 
+int BACKGROUND_COLOR = 226; //BACKGROUND_COLOR color
+int FOREGROUND_LINE_COLOR = 255; //FOREGROUND_LINE_COLOR - line color
+color FOREGROUND_FILL_COLOR = color(100); // FOREGROUND_LINE_COLOR - fill color 
 
-//initialize n_vertices
-Vertex[] vertices = new Vertex[n_vertices];
+//initialize N_VERTICES
+Vertex[] vertices = new Vertex[N_VERTICES];
 
-//matrix with values of 1 for n_vertices connected by edges
-int[][] edges = new int[n_vertices][n_vertices];
+//matrix with values of 1 for N_VERTICES connected by edges
+int[][] edges = new int[N_VERTICES][N_VERTICES];
 
 void setup() {
-  size(640, 480);
+  size(1080, 720);
   smooth(); 
 
-  // randomly initialize vertices
-  for (int i = 0; i < n_vertices; i++) {
+  float minWeight = 0.5;
+  float maxWeight = 3.0;
 
-    float x = random(0+vertex_size,width-vertex_size);
-    float y = random(0+vertex_size,height-vertex_size); 
+  // the BOSS
+  int root = (int) random(1, N_VERTICES);
 
-    vertices[i] = new Vertex(i, x, y, String.format("Vertex %d", i), color(100));
+  vertices[0] = new Vertex(0, WINDOW_HEIGHT / 2, WINDOW_HEIGHT / 2, "ROOT", color(200), 1.5 * maxWeight * DEFAULT_VERTEX_SIZE);
+  vertices[0].weight = 1.5 * maxWeight;
+
+  // randomly initialize rest of the vertices
+  for (int i = 1; i < N_VERTICES; i++) {
+
+    float x = random(0+DEFAULT_VERTEX_SIZE,width-DEFAULT_VERTEX_SIZE);
+    float y = random(0+DEFAULT_VERTEX_SIZE,height-DEFAULT_VERTEX_SIZE); 
+
+    float weight = random(minWeight, maxWeight);
+    float radius = weight * DEFAULT_VERTEX_SIZE;
+
+    vertices[i] = new Vertex(i, x, y, String.format("Vertex %d", i), color(100), radius);
+    vertices[i].weight = weight;
   }
 
-  fill(foreground_colour); 
-  // make this a randomly connected graph, for every pair of n_vertices i and j
+  fill(FOREGROUND_FILL_COLOR); 
+  // make this a randomly connected graph, for every pair of N_VERTICES i and j
   float val = 0;
-  for (int i = 0; i < n_vertices; i++) {
-    for (int j=i+1; j<n_vertices; j++) {
+  for (int i = 0; i < N_VERTICES; i++) {
+    for (int j=i+1; j< N_VERTICES; j++) {
       //create the edges with probability 0.5
       val = random(0,1);
       if(val > 0.5) { 
@@ -198,6 +285,7 @@ void mouseDragged() {
   for (Vertex v : vertices) {
     if (v.mouseOver()) {
       v.label.isVisible = false;
+
       v.setPosition(x, y);
       break;
     }
@@ -214,23 +302,23 @@ void mouseClicked() {
 }
 
 void draw() {
-  background(background);
+  background(BACKGROUND_COLOR);
   stroke(0);
 
-  //draw the n_vertices
+  //draw the N_VERTICES
   for (Vertex v : vertices) {
     v.draw();
     v.drawText();
   }
 
-  stroke(foreground);
+  stroke(FOREGROUND_LINE_COLOR);
 
   //draw the edges
-  for (int i = 0; i < n_vertices; i++) {
+  for (int i = 0; i < N_VERTICES; i++) {
 
     Vertex u = vertices[i];
 
-    for(int j=i+1; j<n_vertices; j++) {
+    for(int j=i+1; j<N_VERTICES; j++) {
 
       Vertex v = vertices[j];
 
@@ -239,4 +327,7 @@ void draw() {
       }
     }
   }
+
+  // adjust_position
+  adjust_position(vertices, 5);
 }

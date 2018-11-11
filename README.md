@@ -1,6 +1,11 @@
 # processing-graph-viz-example
 Node visualization and manipulation in processing
 
+<br>
+
+Nodes act as magnets. Their behaviour is based on the weight assigned to them, so is the radius.
+
+<br>
 
 ### Run Instructions
 
