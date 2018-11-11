@@ -248,6 +248,7 @@ void setup() {
 
   vertices[0] = new Vertex(0, WINDOW_HEIGHT / 2, WINDOW_HEIGHT / 2, "ROOT", color(200), 1.5 * maxWeight * DEFAULT_VERTEX_SIZE);
   vertices[0].weight = 1.5 * maxWeight;
+  vertices[0].label.isPersistent = true;
 
   // randomly initialize rest of the vertices
   for (int i = 1; i < N_VERTICES; i++) {
@@ -297,7 +298,7 @@ void mouseClicked() {
   float y = mouseY;
 
   for (Vertex v : vertices) {
-    v.label.isPersistent = v.mouseOver();
+    v.label.isPersistent = v.name == "ROOT" ? true : v.mouseOver();
   }
 }
 
